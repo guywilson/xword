@@ -29,12 +29,17 @@ int main(int argc, char *argv[])
 {
     int             mode = 0;
     int             rtn;
+    int             inputLen;
     char *          pszInput;
     char *          pszDictionary;
     FILE *          fptr;
     char            szErrorString[ERROR_BUF_SIZE];
     char            szMatch[REGEX_MATCH_LEN];
     uint32_t        dictionaryLen;
+    regex_t         regex;
+    regmatch_t      pmatch[1];
+    regoff_t        matchOffset;
+    regoff_t        matchLength;
 
     if (argc > 2) {
         for (int i = 1;i < argc;i++) {
@@ -59,6 +64,15 @@ int main(int argc, char *argv[])
     }
 
     pszInput = strdup(&argv[2][0]);
+
+    inputLen = (int)strlen(pszInput);
+
+    /*
+    ** Make sure the input string is lower case...
+    */
+    for (int i = 0;i < inputLen;i++) {
+        pszInput[i] = tolower(pszInput[i]);
+    }
 
     fptr = fopen(DICTIONARY_FILE, "rt");
 
@@ -86,7 +100,7 @@ int main(int argc, char *argv[])
     if (mode == MODE_XWORD) {
         string regexInitialiser = "^("; 
 
-        for (int j = 0;j < (int)strlen(pszInput);j++) {
+        for (int j = 0;j < inputLen;j++) {
             if (pszInput[j] == '?') {
                 regexInitialiser += "[a-z]{1}";
             }
@@ -104,18 +118,14 @@ int main(int argc, char *argv[])
 
         cout << "Regex string '" << regexInitialiser << "'" << endl;
 
-        char *          s = pszDictionary;
-        regex_t         regex;
-        regmatch_t      pmatch[1];
-        regoff_t        matchOffset;
-        regoff_t        matchLength;
+        char * s = pszDictionary;
 
         rtn = regcomp(&regex, regexInitialiser.c_str(), REG_EXTENDED | REG_NEWLINE);
 
         if (rtn) {
             regerror(rtn, &regex, szErrorString, 128);
 
-            cout << "Failed to compile regular expression '" << szRegexInitialiser << "': " << szErrorString;
+            cout << "Failed to compile regular expression '" << regexInitialiser << "': " << szErrorString;
             free(pszDictionary);
             exit(-1);
         }
@@ -137,9 +147,61 @@ int main(int argc, char *argv[])
 
             s += pmatch[0].rm_eo;
         }
+
+        regfree(&regex);
     }
     else if (mode == MODE_ANAGRAM) {
+        /*
+        ** Start by building a frequency distribution of the
+        ** characters in our input string...
+        */
+        int     freqArray[26];
 
+        for (int i = 0;i < inputLen;i++) {
+            freqArray[pszInput[i] - 'a']++;
+        }
+
+        const char * pszFormatStr = "^([%s]{%d})$";
+        
+        char * pszRegexString = (char *)malloc(strlen(pszFormatStr) + inputLen + 32); 
+
+        cout << "Anagrams for '" << pszInput << "':" << endl;
+
+        for (int i = inputLen;i >= 1;i--) {
+            sprintf(pszRegexString, pszFormatStr, pszInput, i);
+
+            char * s = pszDictionary;
+
+            rtn = regcomp(&regex, pszRegexString, REG_EXTENDED | REG_NEWLINE);
+
+            if (rtn) {
+                regerror(rtn, &regex, szErrorString, 128);
+
+                cout << "Failed to compile regular expression '" << pszRegexString << "': " << szErrorString;
+                free(pszDictionary);
+                exit(-1);
+            }
+
+            while (!regexec(&regex, s, 1, pmatch, 0)) {
+                matchOffset = pmatch[0].rm_so;
+                matchLength = pmatch[0].rm_eo - pmatch[0].rm_so;
+
+                if (matchLength > REGEX_MATCH_LEN) {
+                    cout << "*** Match longer than buffer, skipping..." << endl;
+                }
+                else {
+                    strncpy(szMatch, &s[matchOffset], matchLength);
+
+                    cout << szMatch << endl;
+                }
+
+                s += pmatch[0].rm_eo;
+            }
+
+            regfree(&regex);
+        }
+
+        free(pszRegexString);
     }
     else {
         cout << "Invalid mode: " << mode << endl << endl;
