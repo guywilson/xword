@@ -141,6 +141,7 @@ int main(int argc, char *argv[])
             }
             else {
                 strncpy(szMatch, &s[matchOffset], matchLength);
+                szMatch[matchLength] = 0;
 
                 cout << szMatch << endl;
             }
@@ -157,8 +158,11 @@ int main(int argc, char *argv[])
         */
         int     freqArray[26];
 
+        memset(freqArray, 0, sizeof(int) * 26);
+
         for (int i = 0;i < inputLen;i++) {
-            freqArray[pszInput[i] - 'a']++;
+            int index = pszInput[i] - 'a';
+            freqArray[index]++;
         }
 
         const char * pszFormatStr = "^([%s]{%d})$";
@@ -191,8 +195,27 @@ int main(int argc, char *argv[])
                 }
                 else {
                     strncpy(szMatch, &s[matchOffset], matchLength);
+                    szMatch[matchLength] = 0;
 
-                    cout << szMatch << endl;
+//                    cout << "Match: '" << szMatch << "' " << strlen(szMatch) << endl;
+
+                    int     matchFreqArray[26];
+                    bool    includeMatch = true;
+
+                    memset(matchFreqArray, 0, sizeof(int) * 26);
+
+                    for (int j = 0;j < (int)strlen(szMatch);j++) {
+                        int index = szMatch[j] - 'a';
+                        matchFreqArray[index]++;
+
+                        if (matchFreqArray[index] > freqArray[index]) {
+                            includeMatch = false;
+                        }
+                    }
+
+                    if (includeMatch) {
+                        cout << szMatch << endl;
+                    }
                 }
 
                 s += pmatch[0].rm_eo;
