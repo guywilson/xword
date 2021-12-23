@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
         cout << "Anagrams for '" << pszInput << "':" << endl;
 
-        for (int i = inputLen;i >= 1;i--) {
+        for (int i = inputLen;i >= 2;i--) {
             sprintf(pszRegexString, pszFormatStr, pszInput, i);
 
             char * s = pszDictionary;
