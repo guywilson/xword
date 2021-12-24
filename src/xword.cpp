@@ -16,6 +16,7 @@ using namespace std;
 
 #define ERROR_BUF_SIZE              128
 #define REGEX_MATCH_LEN             64
+#define MIN_ANAGRAM_SOLUTION_LEN    3
 
 
 void inline printUsage() {
@@ -171,7 +172,12 @@ int main(int argc, char *argv[])
 
         cout << "Anagrams for '" << pszInput << "':" << endl;
 
-        for (int i = inputLen;i >= 2;i--) {
+        for (int i = inputLen;i >= MIN_ANAGRAM_SOLUTION_LEN;i--) {
+            /*
+            ** Build the regex string...
+            ** Starting with solutions the length of the input string
+            ** find solutions down to MIN_ANAGRAM_SOLUTION_LEN
+            */
             sprintf(pszRegexString, pszFormatStr, pszInput, i);
 
             char * s = pszDictionary;
@@ -186,6 +192,9 @@ int main(int argc, char *argv[])
                 exit(-1);
             }
 
+            /*
+            ** Find matches...
+            */
             while (!regexec(&regex, s, 1, pmatch, 0)) {
                 matchOffset = pmatch[0].rm_so;
                 matchLength = pmatch[0].rm_eo - pmatch[0].rm_so;
@@ -204,10 +213,19 @@ int main(int argc, char *argv[])
 
                     memset(matchFreqArray, 0, sizeof(int) * 26);
 
+                    /*
+                    ** Build a frequency array and compare against the frequency array
+                    ** for the input string, reject any solution that has too many of
+                    ** a particular character from the solution. E.g. for the input
+                    ** 'cabbage', regex will find 'babbage' as a match in the dictionary.
+                    */
                     for (int j = 0;j < (int)strlen(szMatch);j++) {
                         int index = szMatch[j] - 'a';
                         matchFreqArray[index]++;
 
+                        /*
+                        ** Reject match if we have too many of a particular character...
+                        */
                         if (matchFreqArray[index] > freqArray[index]) {
                             includeMatch = false;
                         }
