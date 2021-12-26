@@ -21,7 +21,7 @@ using namespace std;
 
 void inline printUsage() {
     cout << "Usage:" << endl;
-    cout << "    xcode <options> [input string]" << endl << endl;
+    cout << "    xcode -d [dictionary file] -xa [input string]" << endl << endl;
     cout << "    -x crossword mode, list all possible matches for input string" << endl;
     cout << "    -a anagram mode, list all anagrams for the word in input string" << endl << endl;
 }
@@ -31,8 +31,9 @@ int main(int argc, char *argv[])
     int             mode = 0;
     int             rtn;
     int             inputLen;
-    char *          pszInput;
+    char *          pszInput = NULL;
     char *          pszDictionary;
+    char *          pszDictionaryFile = NULL;
     FILE *          fptr;
     char            szErrorString[ERROR_BUF_SIZE];
     char            szMatch[REGEX_MATCH_LEN];
@@ -45,11 +46,22 @@ int main(int argc, char *argv[])
     if (argc > 2) {
         for (int i = 1;i < argc;i++) {
             if (argv[i][0] == '-') {
-                if (strncmp(&argv[i][1], "x", 2) == 0) {
+                if (argv[i][1] == 'x') {
                     mode = MODE_XWORD;
+
+                    if (i < argc - 1) {
+                        pszInput = strdup(&argv[i+1][0]);
+                    }
                 }
-                else if (strncmp(&argv[i][1], "a", 2) == 0) {
+                else if (argv[i][1] == 'a') {
                     mode = MODE_ANAGRAM;
+
+                    if (i < argc - 1) {
+                        pszInput = strdup(&argv[i+1][0]);
+                    }
+                }
+                else if (argv[i][1] == 'd') {
+                    pszDictionaryFile = strdup(&argv[i+1][0]);
                 }
                 else {
                     cout << "Invalid argument: " << &argv[i][0] << endl << endl;
@@ -64,7 +76,10 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    pszInput = strdup(&argv[2][0]);
+    if (pszInput == NULL) {
+        cout << "No input string supplied..." << endl;
+        exit(-1);
+    }
 
     inputLen = (int)strlen(pszInput);
 
@@ -75,12 +90,20 @@ int main(int argc, char *argv[])
         pszInput[i] = tolower(pszInput[i]);
     }
 
-    fptr = fopen(DICTIONARY_FILE, "rt");
+    if (pszDictionaryFile == NULL) {
+        pszDictionaryFile = strdup(DICTIONARY_FILE);
+    }
+
+    fptr = fopen(pszDictionaryFile, "rt");
 
     if (fptr == NULL) {
-        cout << "Failed to open dictionary file '" << DICTIONARY_FILE << "'" << endl;
+        cout << "Failed to open dictionary file '" << pszDictionaryFile << "'" << endl;
+        free(pszDictionaryFile);
+        free(pszInput);
         exit(-1);
     }
+
+    free(pszDictionaryFile);
 
     fseek(fptr, 0L, SEEK_END);
     dictionaryLen = ftell(fptr);
@@ -151,6 +174,8 @@ int main(int argc, char *argv[])
         }
 
         regfree(&regex);
+
+        free(pszInput);
     }
     else if (mode == MODE_ANAGRAM) {
         /*
@@ -243,10 +268,12 @@ int main(int argc, char *argv[])
         }
 
         free(pszRegexString);
+        free(pszInput);
     }
     else {
         cout << "Invalid mode: " << mode << endl << endl;
         printUsage();
+        free(pszInput);
         free(pszDictionary);
         exit(-1);
     }
