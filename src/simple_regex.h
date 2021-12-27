@@ -3,6 +3,8 @@
 
 #include <regex.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #ifndef __INCL_REGEX
 #define __INCL_REGEX
