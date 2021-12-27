@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <regex.h>
+
+#include "simple_regex.h"
 
 using namespace std;
 
@@ -14,8 +15,6 @@ using namespace std;
 
 #define DICTIONARY_FILE             "./dictionary.db"
 
-#define ERROR_BUF_SIZE              128
-#define REGEX_MATCH_LEN             64
 #define MIN_ANAGRAM_SOLUTION_LEN    3
 
 
@@ -29,19 +28,12 @@ void inline printUsage() {
 int main(int argc, char *argv[])
 {
     int             mode = 0;
-    int             rtn;
     int             inputLen;
     char *          pszInput = NULL;
     char *          pszDictionary;
     char *          pszDictionaryFile = NULL;
     FILE *          fptr;
-    char            szErrorString[ERROR_BUF_SIZE];
-    char            szMatch[REGEX_MATCH_LEN];
     uint32_t        dictionaryLen;
-    regex_t         regex;
-    regmatch_t      pmatch[1];
-    regoff_t        matchOffset;
-    regoff_t        matchLength;
 
     if (argc > 2) {
         for (int i = 1;i < argc;i++) {
@@ -140,40 +132,13 @@ int main(int argc, char *argv[])
 
         regexInitialiser += ")$";
 
-        cout << "Regex string '" << regexInitialiser << "'" << endl;
-
-        char * s = pszDictionary;
-
-        rtn = regcomp(&regex, regexInitialiser.c_str(), REG_EXTENDED | REG_NEWLINE);
-
-        if (rtn) {
-            regerror(rtn, &regex, szErrorString, 128);
-
-            cout << "Failed to compile regular expression '" << regexInitialiser << "': " << szErrorString;
-            free(pszDictionary);
-            exit(-1);
-        }
+        SimpleRegex r(regexInitialiser, pszDictionary);
 
         cout << "Matches for '" << pszInput << "':" << endl;
 
-        while (!regexec(&regex, s, 1, pmatch, 0)) {
-            matchOffset = pmatch[0].rm_so;
-            matchLength = pmatch[0].rm_eo - pmatch[0].rm_so;
-
-            if (matchLength > REGEX_MATCH_LEN) {
-                cout << "*** Match longer than buffer, skipping..." << endl;
-            }
-            else {
-                strncpy(szMatch, &s[matchOffset], matchLength);
-                szMatch[matchLength] = 0;
-
-                cout << szMatch << endl;
-            }
-
-            s += pmatch[0].rm_eo;
+        while (r.hasMoreMatches()) {
+            cout << *(r.nextMatch()) << endl;
         }
-
-        regfree(&regex);
 
         free(pszInput);
     }
@@ -205,66 +170,44 @@ int main(int argc, char *argv[])
             */
             sprintf(pszRegexString, pszFormatStr, pszInput, i);
 
-            char * s = pszDictionary;
-
-            rtn = regcomp(&regex, pszRegexString, REG_EXTENDED | REG_NEWLINE);
-
-            if (rtn) {
-                regerror(rtn, &regex, szErrorString, 128);
-
-                cout << "Failed to compile regular expression '" << pszRegexString << "': " << szErrorString;
-                free(pszDictionary);
-                exit(-1);
-            }
+            SimpleRegex * r = new SimpleRegex(string(pszRegexString), pszDictionary);
 
             /*
             ** Find matches...
             */
-            while (!regexec(&regex, s, 1, pmatch, 0)) {
-                matchOffset = pmatch[0].rm_so;
-                matchLength = pmatch[0].rm_eo - pmatch[0].rm_so;
+            while (r->hasMoreMatches()) {
+                int             matchFreqArray[26];
+                bool            includeMatch = true;
+                const char *    pszMatch;
 
-                if (matchLength > REGEX_MATCH_LEN) {
-                    cout << "*** Match longer than buffer, skipping..." << endl;
-                }
-                else {
-                    strncpy(szMatch, &s[matchOffset], matchLength);
-                    szMatch[matchLength] = 0;
+                memset(matchFreqArray, 0, sizeof(int) * 26);
 
-//                    cout << "Match: '" << szMatch << "' " << strlen(szMatch) << endl;
+                pszMatch = r->nextMatch()->c_str();
 
-                    int     matchFreqArray[26];
-                    bool    includeMatch = true;
-
-                    memset(matchFreqArray, 0, sizeof(int) * 26);
+                /*
+                ** Build a frequency array and compare against the frequency array
+                ** for the input string, reject any solution that has too many of
+                ** a particular character from the solution. E.g. for the input
+                ** 'cabbage', regex will find 'babbage' as a match in the dictionary.
+                */
+                for (int j = 0;j < (int)strlen(pszMatch);j++) {
+                    int index = pszMatch[j] - 'a';
+                    matchFreqArray[index]++;
 
                     /*
-                    ** Build a frequency array and compare against the frequency array
-                    ** for the input string, reject any solution that has too many of
-                    ** a particular character from the solution. E.g. for the input
-                    ** 'cabbage', regex will find 'babbage' as a match in the dictionary.
+                    ** Reject match if we have too many of a particular character...
                     */
-                    for (int j = 0;j < (int)strlen(szMatch);j++) {
-                        int index = szMatch[j] - 'a';
-                        matchFreqArray[index]++;
-
-                        /*
-                        ** Reject match if we have too many of a particular character...
-                        */
-                        if (matchFreqArray[index] > freqArray[index]) {
-                            includeMatch = false;
-                        }
-                    }
-
-                    if (includeMatch) {
-                        cout << szMatch << endl;
+                    if (matchFreqArray[index] > freqArray[index]) {
+                        includeMatch = false;
                     }
                 }
 
-                s += pmatch[0].rm_eo;
+                if (includeMatch) {
+                    cout << pszMatch << endl;
+                }
             }
 
-            regfree(&regex);
+            delete r;
         }
 
         free(pszRegexString);
