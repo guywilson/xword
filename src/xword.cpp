@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,9 +63,9 @@ char * readDictionary(char * pszDictionaryFile)
     return pszDictionary;
 }
 
-void solveForCrossword(char * pszInput, char * pszDictionary)
+vector<string> * solveForCrossword(char * pszInput, char * pszDictionary)
 {
-    int            inputLen;
+    int                 inputLen;
 
     inputLen = (int)strlen(pszInput);
 
@@ -86,14 +87,16 @@ void solveForCrossword(char * pszInput, char * pszDictionary)
 
     SimpleRegex r(regexInitialiser, pszDictionary);
 
-    cout << "Matches for '" << pszInput << "':" << endl;
+    vector<string> * solutions = new vector<string>();
 
     while (r.hasMoreMatches()) {
-        cout << *(r.nextMatch()) << endl;
+        solutions->push_back(*(r.nextMatch()));
     }
+
+    return solutions;
 }
 
-void solveForAnagram(char * pszInput, char * pszDictionary)
+vector<string> * solveForAnagram(char * pszInput, char * pszDictionary)
 {
     int         inputLen;
     int         freqArray[26];
@@ -119,7 +122,7 @@ void solveForAnagram(char * pszInput, char * pszDictionary)
         throw xword_error("Failed to allocate memory for regex string");
     }
 
-    cout << "Anagrams for '" << pszInput << "':" << endl;
+    vector<string> * solutions = new vector<string>();
 
     for (int i = inputLen;i >= MIN_ANAGRAM_SOLUTION_LEN;i--) {
         /*
@@ -162,7 +165,7 @@ void solveForAnagram(char * pszInput, char * pszDictionary)
             }
 
             if (includeMatch) {
-                cout << pszMatch << endl;
+                solutions->push_back(pszMatch);
             }
         }
 
@@ -170,6 +173,8 @@ void solveForAnagram(char * pszInput, char * pszDictionary)
     }
 
     free(pszRegexString);
+
+    return solutions;
 }
 
 int main(int argc, char *argv[])
@@ -238,16 +243,30 @@ int main(int argc, char *argv[])
         */
         pszDictionary = readDictionary(pszDictionaryFile);
 
+        vector<string> * solutions;
+
         if (mode == MODE_XWORD) {
-            solveForCrossword(pszInput, pszDictionary);
+            cout << "Matches for '" << pszInput << "':" << endl;
+
+            solutions = solveForCrossword(pszInput, pszDictionary);
         }
         else if (mode == MODE_ANAGRAM) {
-            solveForAnagram(pszInput, pszDictionary);
+            cout << "Anagrams for '" << pszInput << "':" << endl;
+
+            solutions = solveForAnagram(pszInput, pszDictionary);
         }
         else {
             cout << "Invalid mode: " << mode << endl << endl;
             printUsage();
             rtn = -1;
+        }
+
+        if (solutions != NULL) {
+            for (int i = 0;i < (int)solutions->size();i++) {
+                cout << solutions->at(i) << endl;
+            }
+
+            delete solutions;
         }
 
         free(pszInput);
