@@ -39,8 +39,6 @@ char * readDictionary(char * pszDictionaryFile)
         throw xword_error(xword_error::buildMsg("Failed to open dictionary file '%s'", pszDictionaryFile));
     }
 
-    free(pszDictionaryFile);
-
     fseek(fptr, 0L, SEEK_END);
     dictionaryLen = ftell(fptr);
     fseek(fptr, 0L, SEEK_SET);
@@ -269,6 +267,7 @@ int main(int argc, char *argv[])
             delete solutions;
         }
 
+        free(pszDictionaryFile);
         free(pszInput);
         free(pszDictionary);
     }
