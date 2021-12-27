@@ -25,10 +25,119 @@ void inline printUsage() {
     cout << "    -a anagram mode, list all anagrams for the word in input string" << endl << endl;
 }
 
+void solveForCrossword(char * pszInput, char * pszDictionary)
+{
+    int            inputLen;
+
+    inputLen = (int)strlen(pszInput);
+
+    string regexInitialiser = "^("; 
+
+    for (int i = 0;i < inputLen;i++) {
+        if (pszInput[i] == '?') {
+            regexInitialiser += "[a-z]{1}";
+        }
+        else if (isalpha(pszInput[i])) {
+            regexInitialiser += pszInput[i];
+        }
+        else {
+            cout << "Invalid character in input string" << endl;
+            free(pszDictionary);
+            exit(-1);
+        }
+    }
+
+    regexInitialiser += ")$";
+
+    SimpleRegex r(regexInitialiser, pszDictionary);
+
+    cout << "Matches for '" << pszInput << "':" << endl;
+
+    while (r.hasMoreMatches()) {
+        cout << *(r.nextMatch()) << endl;
+    }
+}
+
+void solveForAnagram(char * pszInput, char * pszDictionary)
+{
+    int         inputLen;
+    int         freqArray[26];
+
+    inputLen = (int)strlen(pszInput);
+
+    /*
+    ** Start by building a frequency distribution of the
+    ** characters in our input string...
+    */
+    memset(freqArray, 0, sizeof(int) * 26);
+
+    for (int i = 0;i < inputLen;i++) {
+        int index = pszInput[i] - 'a';
+        freqArray[index]++;
+    }
+
+    const char * pszFormatStr = "^([%s]{%d})$";
+    
+    char * pszRegexString = (char *)malloc(strlen(pszFormatStr) + inputLen + 32); 
+
+    cout << "Anagrams for '" << pszInput << "':" << endl;
+
+    for (int i = inputLen;i >= MIN_ANAGRAM_SOLUTION_LEN;i--) {
+        /*
+        ** Build the regex string...
+        ** Starting with solutions the length of the input string
+        ** find solutions down to MIN_ANAGRAM_SOLUTION_LEN
+        */
+        sprintf(pszRegexString, pszFormatStr, pszInput, i);
+
+        SimpleRegex * r = new SimpleRegex(string(pszRegexString), pszDictionary);
+
+        /*
+        ** Find matches...
+        */
+        while (r->hasMoreMatches()) {
+            int             matchFreqArray[26];
+            bool            includeMatch = true;
+            const char *    pszMatch;
+
+            memset(matchFreqArray, 0, sizeof(int) * 26);
+
+            pszMatch = r->nextMatch()->c_str();
+
+            /*
+            ** Build a frequency array and compare against the frequency array
+            ** for the input string, reject any solution that has too many of
+            ** a particular character from the solution. E.g. for the input
+            ** 'cabbage', regex will find 'babbage' as a match in the dictionary.
+            */
+            for (int j = 0;j < (int)strlen(pszMatch);j++) {
+                int index = pszMatch[j] - 'a';
+                matchFreqArray[index]++;
+
+                /*
+                ** Reject match if we have too many of a particular character...
+                */
+                if (matchFreqArray[index] > freqArray[index]) {
+                    includeMatch = false;
+                }
+            }
+
+            if (includeMatch) {
+                cout << pszMatch << endl;
+            }
+        }
+
+        delete r;
+    }
+
+    free(pszRegexString);
+}
+
 int main(int argc, char *argv[])
 {
     int             mode = 0;
     int             inputLen;
+    int             rtn = 0;
     char *          pszInput = NULL;
     char *          pszDictionary;
     char *          pszDictionaryFile = NULL;
@@ -114,114 +223,19 @@ int main(int argc, char *argv[])
     fclose(fptr);
 
     if (mode == MODE_XWORD) {
-        string regexInitialiser = "^("; 
-
-        for (int j = 0;j < inputLen;j++) {
-            if (pszInput[j] == '?') {
-                regexInitialiser += "[a-z]{1}";
-            }
-            else if (isalpha(pszInput[j])) {
-                regexInitialiser += pszInput[j];
-            }
-            else {
-                cout << "Invalid character in input string" << endl;
-                free(pszDictionary);
-                exit(-1);
-            }
-        }
-
-        regexInitialiser += ")$";
-
-        SimpleRegex r(regexInitialiser, pszDictionary);
-
-        cout << "Matches for '" << pszInput << "':" << endl;
-
-        while (r.hasMoreMatches()) {
-            cout << *(r.nextMatch()) << endl;
-        }
-
-        free(pszInput);
+        solveForCrossword(pszInput, pszDictionary);
     }
     else if (mode == MODE_ANAGRAM) {
-        /*
-        ** Start by building a frequency distribution of the
-        ** characters in our input string...
-        */
-        int     freqArray[26];
-
-        memset(freqArray, 0, sizeof(int) * 26);
-
-        for (int i = 0;i < inputLen;i++) {
-            int index = pszInput[i] - 'a';
-            freqArray[index]++;
-        }
-
-        const char * pszFormatStr = "^([%s]{%d})$";
-        
-        char * pszRegexString = (char *)malloc(strlen(pszFormatStr) + inputLen + 32); 
-
-        cout << "Anagrams for '" << pszInput << "':" << endl;
-
-        for (int i = inputLen;i >= MIN_ANAGRAM_SOLUTION_LEN;i--) {
-            /*
-            ** Build the regex string...
-            ** Starting with solutions the length of the input string
-            ** find solutions down to MIN_ANAGRAM_SOLUTION_LEN
-            */
-            sprintf(pszRegexString, pszFormatStr, pszInput, i);
-
-            SimpleRegex * r = new SimpleRegex(string(pszRegexString), pszDictionary);
-
-            /*
-            ** Find matches...
-            */
-            while (r->hasMoreMatches()) {
-                int             matchFreqArray[26];
-                bool            includeMatch = true;
-                const char *    pszMatch;
-
-                memset(matchFreqArray, 0, sizeof(int) * 26);
-
-                pszMatch = r->nextMatch()->c_str();
-
-                /*
-                ** Build a frequency array and compare against the frequency array
-                ** for the input string, reject any solution that has too many of
-                ** a particular character from the solution. E.g. for the input
-                ** 'cabbage', regex will find 'babbage' as a match in the dictionary.
-                */
-                for (int j = 0;j < (int)strlen(pszMatch);j++) {
-                    int index = pszMatch[j] - 'a';
-                    matchFreqArray[index]++;
-
-                    /*
-                    ** Reject match if we have too many of a particular character...
-                    */
-                    if (matchFreqArray[index] > freqArray[index]) {
-                        includeMatch = false;
-                    }
-                }
-
-                if (includeMatch) {
-                    cout << pszMatch << endl;
-                }
-            }
-
-            delete r;
-        }
-
-        free(pszRegexString);
-        free(pszInput);
+        solveForAnagram(pszInput, pszDictionary);
     }
     else {
         cout << "Invalid mode: " << mode << endl << endl;
         printUsage();
-        free(pszInput);
-        free(pszDictionary);
-        exit(-1);
+        rtn = -1;
     }
 
+    free(pszInput);
     free(pszDictionary);
 
-    return 0;
+    return rtn;
 }
