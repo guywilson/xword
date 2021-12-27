@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "simple_regex.h"
+#include "xword_error.h"
 
 using namespace std;
 
@@ -25,6 +26,42 @@ void inline printUsage() {
     cout << "    -a anagram mode, list all anagrams for the word in input string" << endl << endl;
 }
 
+char * readDictionary(char * pszDictionaryFile)
+{
+    char *          pszDictionary;
+    FILE *          fptr;
+    uint32_t        dictionaryLen;
+    
+    fptr = fopen(pszDictionaryFile, "rt");
+
+    if (fptr == NULL) {
+        throw xword_error(xword_error::buildMsg("Failed to open dictionary file '%s'", pszDictionaryFile));
+    }
+
+    free(pszDictionaryFile);
+
+    fseek(fptr, 0L, SEEK_END);
+    dictionaryLen = ftell(fptr);
+    fseek(fptr, 0L, SEEK_SET);
+
+    pszDictionary = (char *)malloc(dictionaryLen);
+
+    if (pszDictionary == NULL) {
+        fclose(fptr);
+        throw xword_error("Failed to allocate memory for dictionary");
+    }
+
+    uint32_t bytesRead = (uint32_t)fread(pszDictionary, 1, dictionaryLen, fptr);
+
+    if (bytesRead < dictionaryLen) {
+        throw xword_error(xword_error::buildMsg("Failed to read in whole dictionary, got %u of %u bytes", bytesRead, dictionaryLen));
+    }
+
+    fclose(fptr);
+
+    return pszDictionary;
+}
+
 void solveForCrossword(char * pszInput, char * pszDictionary)
 {
     int            inputLen;
@@ -41,9 +78,7 @@ void solveForCrossword(char * pszInput, char * pszDictionary)
             regexInitialiser += pszInput[i];
         }
         else {
-            cout << "Invalid character in input string" << endl;
-            free(pszDictionary);
-            exit(-1);
+            throw xword_error("Invalid character in input string");
         }
     }
 
@@ -78,7 +113,11 @@ void solveForAnagram(char * pszInput, char * pszDictionary)
 
     const char * pszFormatStr = "^([%s]{%d})$";
     
-    char * pszRegexString = (char *)malloc(strlen(pszFormatStr) + inputLen + 32); 
+    char * pszRegexString = (char *)malloc(strlen(pszFormatStr) + inputLen + 32);
+
+    if (pszRegexString == NULL) {
+        throw xword_error("Failed to allocate memory for regex string");
+    }
 
     cout << "Anagrams for '" << pszInput << "':" << endl;
 
@@ -141,8 +180,6 @@ int main(int argc, char *argv[])
     char *          pszInput = NULL;
     char *          pszDictionary;
     char *          pszDictionaryFile = NULL;
-    FILE *          fptr;
-    uint32_t        dictionaryLen;
 
     if (argc > 2) {
         for (int i = 1;i < argc;i++) {
@@ -195,47 +232,33 @@ int main(int argc, char *argv[])
         pszDictionaryFile = strdup(DICTIONARY_FILE);
     }
 
-    fptr = fopen(pszDictionaryFile, "rt");
+    try {
+        /*
+        ** Read in the dictionary...
+        */
+        pszDictionary = readDictionary(pszDictionaryFile);
 
-    if (fptr == NULL) {
-        cout << "Failed to open dictionary file '" << pszDictionaryFile << "'" << endl;
-        free(pszDictionaryFile);
+        if (mode == MODE_XWORD) {
+            solveForCrossword(pszInput, pszDictionary);
+        }
+        else if (mode == MODE_ANAGRAM) {
+            solveForAnagram(pszInput, pszDictionary);
+        }
+        else {
+            cout << "Invalid mode: " << mode << endl << endl;
+            printUsage();
+            rtn = -1;
+        }
+
         free(pszInput);
-        exit(-1);
+        free(pszDictionary);
     }
-
-    free(pszDictionaryFile);
-
-    fseek(fptr, 0L, SEEK_END);
-    dictionaryLen = ftell(fptr);
-    fseek(fptr, 0L, SEEK_SET);
-
-    pszDictionary = (char *)malloc(dictionaryLen);
-
-    if (pszDictionary == NULL) {
-        cout << "Failed to allocate memory for dictionary" << endl;
-        fclose(fptr);
-        exit(-1);
+    catch (xword_error & xe) {
+        cout << "Caught exception: " << xe.what() << endl;
     }
-
-    fread(pszDictionary, 1, dictionaryLen, fptr);
-
-    fclose(fptr);
-
-    if (mode == MODE_XWORD) {
-        solveForCrossword(pszInput, pszDictionary);
+    catch (regex_error & re) {
+        cout << "Caught exception: " << re.what() << endl;
     }
-    else if (mode == MODE_ANAGRAM) {
-        solveForAnagram(pszInput, pszDictionary);
-    }
-    else {
-        cout << "Invalid mode: " << mode << endl << endl;
-        printUsage();
-        rtn = -1;
-    }
-
-    free(pszInput);
-    free(pszDictionary);
 
     return rtn;
 }

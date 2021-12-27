@@ -5,49 +5,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <regex.h>
 
-#ifndef __INCL_REGEX
-#define __INCL_REGEX
+#ifndef __INCL_REGEX_ERROR
+#define __INCL_REGEX_ERROR
 
-#define REGEX_MATCH_LEN             64
-#define ERROR_BUF_SIZE              128
-
-class SimpleRegex
-{
-private:
-    regex_t         regex;
-    regmatch_t      pmatch[1];
-    regoff_t        matchOffset;
-    regoff_t        matchLength;
-
-    char *          source;
-
-public:
-    SimpleRegex(std::string expression, char * pszSource);
-    ~SimpleRegex();
-
-    bool hasMoreMatches();
-
-    std::string * nextMatch();
-};
-
-class regex_error : public std::exception
+class xword_error : public std::exception
 {
     private:
         std::string     message;
 
     public:
-        regex_error() {
+        xword_error() {
             this->message.assign("Regex error");
         }
 
-        regex_error(const char * msg) {
+        xword_error(const char * msg) {
             this->message.assign("Regex error: ");
             this->message.append(msg);
         }
 
-        regex_error(const char * msg, const char * file, int line) {
+        xword_error(const char * msg, const char * file, int line) {
             char lineNumBuf[8];
 
             sprintf(lineNumBuf, ":%d", line);
