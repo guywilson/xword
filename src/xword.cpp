@@ -96,8 +96,12 @@ vector<string> * solveForCrossword(char * pszInput, char * pszDictionary)
 
 vector<string> * solveForAnagram(char * pszInput, char * pszDictionary)
 {
-    int         inputLen;
-    int         freqArray[26];
+    int             inputLen;
+    int             index;
+    int             freqArray[26];
+    int             matchFreqArray[26];
+    bool            includeMatch = true;
+    const char *    pszMatch;
 
     inputLen = (int)strlen(pszInput);
 
@@ -136,9 +140,7 @@ vector<string> * solveForAnagram(char * pszInput, char * pszDictionary)
         ** Find matches...
         */
         while (r->hasMoreMatches()) {
-            int             matchFreqArray[26];
-            bool            includeMatch = true;
-            const char *    pszMatch;
+            includeMatch = true;
 
             memset(matchFreqArray, 0, sizeof(int) * 26);
 
@@ -151,7 +153,7 @@ vector<string> * solveForAnagram(char * pszInput, char * pszDictionary)
             ** 'cabbage', regex will find 'babbage' as a match in the dictionary.
             */
             for (int j = 0;j < (int)strlen(pszMatch);j++) {
-                int index = pszMatch[j] - 'a';
+                index = pszMatch[j] - 'a';
                 matchFreqArray[index]++;
 
                 /*
