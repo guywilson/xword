@@ -14,10 +14,11 @@ using namespace std;
 
 #define MODE_XWORD                  1
 #define MODE_ANAGRAM                2
+#define MIN_ANAGRAM_SOLUTION_LEN    3
+#define COLUMN_SPACING              25
+#define NUM_DISPLAY_COLUMNS         3
 
 #define DICTIONARY_FILE             "./dictionary.db"
-
-#define MIN_ANAGRAM_SOLUTION_LEN    3
 
 
 void inline printUsage() {
@@ -181,6 +182,7 @@ int main(int argc, char *argv[])
 {
     int             mode = 0;
     int             inputLen;
+    int             solutionLength;
     int             rtn = 0;
     char *          pszInput = NULL;
     char *          pszDictionary;
@@ -243,7 +245,8 @@ int main(int argc, char *argv[])
         */
         pszDictionary = readDictionary(pszDictionaryFile);
 
-        vector<string> * solutions;
+        vector<string> *    solutions;
+        string              solution;
 
         if (mode == MODE_XWORD) {
             cout << "Matches for '" << pszInput << "':" << endl;
@@ -261,9 +264,26 @@ int main(int argc, char *argv[])
             rtn = -1;
         }
 
+        int columnNum = 0;
+
         if (solutions != NULL) {
             for (int i = 0;i < (int)solutions->size();i++) {
-                cout << solutions->at(i) << endl;
+                solution = solutions->at(i);
+                solutionLength = solution.length();
+
+                cout << solution;
+
+                if (columnNum < (NUM_DISPLAY_COLUMNS - 1)) {
+                    for (int j = 0;j < (COLUMN_SPACING - solutionLength);j++) {
+                        cout << " ";
+                    }
+
+                    columnNum++;
+                }
+                else {
+                    cout << endl;
+                    columnNum = 0;
+                }
             }
 
             delete solutions;
