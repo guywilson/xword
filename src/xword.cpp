@@ -23,7 +23,7 @@ using namespace std;
 
 void inline printUsage() {
     cout << "Usage:" << endl;
-    cout << "    xcode -d [dictionary file] -xa [input string]" << endl << endl;
+    cout << "    xword -d [dictionary file] -xa [input string]" << endl << endl;
     cout << "    -x crossword mode, list all possible matches for input string" << endl;
     cout << "    -a anagram mode, list all anagrams for the word in input string" << endl << endl;
 }
